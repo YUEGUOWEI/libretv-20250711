@@ -1,5 +1,11 @@
-import { gunzipSync } from 'node:zlib';
 import type { EpgProgram } from './types';
+
+/** Edge 兼容的 gzip 解压（替代 node:zlib 的 gunzipSync） */
+async function gunzipAsync(data: Uint8Array): Promise<string> {
+  const ds = new DecompressionStream('gzip');
+  const stream = new Blob([data as unknown as BlobPart]).stream().pipeThrough(ds);
+  return await new Response(stream).text();
+}
 
 /**
  * XMLTV 节目单解析。
@@ -69,22 +75,23 @@ function extractAttrs(attrText: string): Record<string, string> {
 }
 
 /**
- * 解析 XMLTV 内容。string 直接入扫描；Buffer 自动识别 gzip（1f 8b 魔数）解压。
+ * 解析 XMLTV 内容。string 直接入扫描；Uint8Array/ArrayBuffer 自动识别 gzip（1f 8b 魔数）解压。
  * 只保留 `[now, now + windowMs]` 窗口内的节目，按频道分组并按开播时间排序。
  */
-export function parseXmltv(
-  content: string | Buffer,
+export async function parseXmltv(
+  content: string | Uint8Array | ArrayBuffer,
   windowMs: number = DEFAULT_WINDOW_MS,
   now: number = Date.now()
-): Map<string, EpgProgram[]> {
+): Promise<Map<string, EpgProgram[]>> {
   let text: string;
-  if (Buffer.isBuffer(content)) {
-    text =
-      content.length >= 2 && content[0] === 0x1f && content[1] === 0x8b
-        ? gunzipSync(content).toString('utf8')
-        : content.toString('utf8');
-  } else {
+  if (typeof content === 'string') {
     text = content;
+  } else {
+    const bytes = content instanceof ArrayBuffer ? new Uint8Array(content) : content;
+    text =
+      bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b
+        ? await gunzipAsync(bytes)
+        : new TextDecoder('utf-8').decode(bytes);
   }
 
   const result = new Map<string, EpgProgram[]>();
