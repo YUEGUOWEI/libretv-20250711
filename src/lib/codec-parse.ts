@@ -417,25 +417,27 @@ export function looksLikeMp4(buf: Uint8Array): boolean {
 /** Edge 兼容的 AES-128-CBC 解密（Web Crypto API，替代 node:crypto 的 createDecipheriv）。
  * 只处理完整的 16 字节块：我们只读了分片开头一小段，末尾必然是不完整块，
  * 直接截断而不做 padding 处理（原 Node 版 setAutoPadding(false) 的等价行为）。 */
-export async function decryptAes128CbcPrefix(buf: Uint8Array, key: Uint8Array, iv: Uint8Array): Promise<Uint8Array> {
+/** Edge 兼容的 AES-128-CBC 解密（Web Crypto API，替代 node:crypto）。
+ * 只解密完整的 16 字节块前缀（原 Node 版 setAutoPadding(false) 的等价行为）。 */
+export async function decryptAes128CbcPrefix(
+  buf: Uint8Array, key: Uint8Array, iv: Uint8Array
+): Promise<Uint8Array> {
   const usable = Math.floor(buf.length / 16) * 16;
   if (usable === 0 || key.length < 16 || iv.length < 16) return new Uint8Array(0);
-  // 显式拷贝到带独立 ArrayBuffer 的新 Uint8Array，满足 TS 5.7+ 的严格类型
-  const keyBuf = new Uint8Array(16);
-  keyBuf.set(key.subarray(0, 16));
-  const ivBuf = new Uint8Array(16);
-  ivBuf.set(iv.subarray(0, 16));
-  const dataBuf = new Uint8Array(usable);
-  dataBuf.set(buf.subarray(0, usable));
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw', keyBuf, { name: 'AES-CBC' }, false, ['decrypt']
-  );
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-CBC', iv: ivBuf },
-    cryptoKey,
-    dataBuf
-  );
-  return new Uint8Array(decrypted);
+  try {
+    const subtle = (globalThis.crypto as any).subtle;
+    const cryptoKey = await subtle.importKey(
+      'raw', new Uint8Array(key.subarray(0, 16)), { name: 'AES-CBC' }, false, ['decrypt']
+    );
+    const decrypted = await subtle.decrypt(
+      { name: 'AES-CBC', iv: new Uint8Array(iv.subarray(0, 16)) },
+      cryptoKey,
+      new Uint8Array(buf.subarray(0, usable))
+    );
+    return new Uint8Array(decrypted);
+  } catch {
+    return new Uint8Array(0);
+  }
 }
 
 /**
