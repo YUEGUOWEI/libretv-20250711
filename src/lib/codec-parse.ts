@@ -417,7 +417,7 @@ export function looksLikeMp4(buf: Uint8Array): boolean {
 /** Edge 兼容的 AES-128-CBC 解密（Web Crypto API，替代 node:crypto 的 createDecipheriv）。
  * 只处理完整的 16 字节块：我们只读了分片开头一小段，末尾必然是不完整块，
  * 直接截断而不做 padding 处理（原 Node 版 setAutoPadding(false) 的等价行为）。 */
-export async function decryptAes128CbcPrefix(buf: Uint8Array, key: Uint8Array, iv: Uint8Array): Promise<Uint8Array> {
+export async function decryptAes128CbcPrefix(buf: Uint8Array<ArrayBufferLike>, key: Uint8Array<ArrayBufferLike>, iv: Uint8Array<ArrayBufferLike>): Promise<Uint8Array> {
   const usable = Math.floor(buf.length / 16) * 16;
   if (usable === 0 || key.length < 16 || iv.length < 16) return new Uint8Array(0);
   const cryptoKey = await crypto.subtle.importKey(
