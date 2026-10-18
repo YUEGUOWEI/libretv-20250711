@@ -1,8 +1,21 @@
-import dns from 'node:dns/promises';
-
 /** 去掉 URL.hostname 对 IPv6 附加的方括号（"[::1]" → "::1"） */
 function stripBrackets(host: string): string {
   return host.trim().replace(/^\[+|\]+$/g, '');
+}
+
+/** Edge 兼容的 DNS 解析（DoH），替代 node:dns/promises */
+async function dohLookup(hostname: string): Promise<string[]> {
+  try {
+    const res = await fetch(
+      `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(hostname)}&type=A`,
+      { headers: { accept: 'application/dns-json' } }
+    );
+    if (!res.ok) return [];
+    const data = (await res.json()) as { Answer?: Array<{ data?: string }> };
+    return (data.Answer || []).map((a) => a.data || '').filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -59,8 +72,8 @@ export async function isBlockedByDNS(urlString: string): Promise<boolean> {
     if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) || hostname.includes(':')) {
       return isPrivateIP(hostname);
     }
-    const result = await dns.lookup(hostname, { all: true });
-    return result.some((r) => isPrivateIP(r.address));
+    const addresses = await dohLookup(hostname);
+    return addresses.some((addr) => isPrivateIP(addr));
   } catch {
     return false; // 解析失败不阻断，交给后续请求处理
   }
