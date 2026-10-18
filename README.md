@@ -209,7 +209,7 @@ npm run typecheck
 
 版本号以 `package.json` 为单一来源，发布镜像由 GitHub Actions 自动完成：
 
-```bash
+```bash 
 npm version patch       # 或 minor / major；会更新 package.json 并打 git tag
 git push && git push --tags
 ```
