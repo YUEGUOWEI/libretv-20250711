@@ -5,7 +5,7 @@ import { withHostLimit } from '@/lib/host-gate';
 import { probeQuality } from '@/lib/quality-probe';
 import type { QualityProbeItem, QualityProbeResult } from '@/lib/types';
 
-export const runtime = 'nodejs';
+export const runtime = 'edge';
 
 interface QualityBody {
   items?: unknown;
