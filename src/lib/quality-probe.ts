@@ -261,7 +261,7 @@ async function probeSegmentResolution(
     if (!keyUrl) return undefined;
     const key = await fetchBytesPrefix(keyUrl, 32, source, signal);
     if (!key || key.length < 16) return undefined;
-    buf = decryptAes128CbcPrefix(buf, key, list.keyIv ?? defaultIv(list.mediaSequence));
+    buf = await decryptAes128CbcPrefix(buf, key, list.keyIv ?? defaultIv(list.mediaSequence));
   }
 
   // 按内容判断容器比按扩展名可靠：不少源的分片没有扩展名
